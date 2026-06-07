@@ -16,9 +16,10 @@ async def search_bids(keyword: str, category: str = "전체", page: int = 1) -> 
     params = {
         "serviceKey": NARAJANGTER_API_KEY,
         "_type": "json",
-        "numOfRows": RESULTS_PER_PAGE if category != "전체" else 3,
+        "numOfRows": 20,
         "pageNo": page,
         "bidNtceNm": keyword,
+        "cntrctCnclsMthdNm": "일반경쟁",
     }
 
     async with httpx.AsyncClient(timeout=10.0) as client:
@@ -34,6 +35,8 @@ async def search_bids(keyword: str, category: str = "전체", page: int = 1) -> 
                     raw = items.get("item", [])
                     if isinstance(raw, dict):
                         raw = [raw]
+                    # 일반경쟁이 아닌 결과 제외 (API 파라미터 미지원 시 대비)
+                    raw = [i for i in raw if i.get("cntrctCnclsMthdNm", "일반경쟁") == "일반경쟁"]
                     all_items.extend(raw)
                     total_count += int(body.get("totalCount", 0))
             except Exception:
