@@ -1,4 +1,5 @@
 import logging
+import os
 from telegram import Update
 from telegram.ext import (
     ContextTypes,
@@ -10,7 +11,7 @@ from telegram.ext import (
 )
 from telegram.constants import ParseMode
 
-from api.narajangter import search_bids, format_item_summary, format_item_detail
+from api.narajangter import search_bids, format_item_summary, format_item_detail, _API_KEY
 from bot.keyboards import category_keyboard, result_keyboard, back_keyboard
 
 logger = logging.getLogger(__name__)
@@ -177,6 +178,21 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
+async def debug_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    key_preview = (_API_KEY[:6] + "...") if len(_API_KEY) > 6 else f"({len(_API_KEY)}자)"
+    await update.message.reply_text(f"API 키: `{key_preview}`\n검색 중...", parse_mode=ParseMode.MARKDOWN)
+    try:
+        result = await search_bids("골목상권", "전체", 1)
+        total = result["total"]
+        items = result["items"]
+        msg = f"총 {total}건 / 이번 페이지 {len(items)}건"
+        if items:
+            msg += "\n\n" + "\n".join(i.get("bidNtceNm", "?") for i in items[:3])
+    except Exception as e:
+        msg = f"오류: {e}"
+    await update.message.reply_text(msg)
+
+
 def build_handlers():
     conv = ConversationHandler(
         entry_points=[CommandHandler("search", search_start)],
@@ -190,6 +206,7 @@ def build_handlers():
     return [
         CommandHandler("start", start),
         CommandHandler("help", help_cmd),
+        CommandHandler("debug", debug_cmd),
         conv,
         CallbackQueryHandler(callback_handler),
         MessageHandler(filters.TEXT & ~filters.COMMAND, any_message),
